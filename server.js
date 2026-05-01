@@ -1,14 +1,9 @@
 import WebSocket from "ws";
 import { createClient } from "@supabase/supabase-js";
 
-const WS_URL = "wss://ws.twelvedata.com/v1/quotes/price";
+const WS_URL = `wss://ws.twelvedata.com/v1/quotes/price?apikey=${process.env.TWELVEDATA_API_KEY}`;
 
-ws = new WebSocket(WS_URL, {
-  headers: {
-    "X-API-KEY": process.env.TWELVEDATA_API_KEY
-  }
-});
-
+this.ws = new WebSocket(WS_URL);
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
