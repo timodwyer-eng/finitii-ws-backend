@@ -1,14 +1,17 @@
 import WebSocket from "ws";
+import express from "express";
 import { createClient } from "@supabase/supabase-js";
 
+// ENV
 const WS_URL = `wss://ws.twelvedata.com/v1/quotes/price?apikey=${process.env.TWELVEDATA_API_KEY}`;
 
-this.ws = new WebSocket(WS_URL);
+// Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+// Symbols (expand later)
 const symbols = [
   "BTC/USD",
   "ETH/USD",
@@ -16,11 +19,19 @@ const symbols = [
   "QQQ",
   "EUR/USD",
   "GBP/USD"
-]; // <-- expand later
+];
 
 let ws;
 let latestPrices = {};
 
+// Map symbols for DB consistency
+function mapSymbol(tdSymbol) {
+  if (tdSymbol === "BTC/USD") return "BTC";
+  if (tdSymbol === "ETH/USD") return "ETH";
+  return tdSymbol;
+}
+
+// CONNECT WS
 function connect() {
   console.log("🔌 Connecting to TwelveData...");
 
@@ -47,17 +58,19 @@ function connect() {
 
       if (msg.event === "price") {
         const price = Number(msg.price);
-        if (!price) return;
+        if (!price || !isFinite(price)) return;
 
-        latestPrices[msg.symbol] = {
-          symbol: msg.symbol,
+        const dbSymbol = mapSymbol(msg.symbol);
+
+        latestPrices[dbSymbol] = {
+          symbol: dbSymbol,
           price,
           change_24h: Number(msg.day_change_percent || 0),
           previous_close: Number(msg.close || 0),
           updated_at: new Date().toISOString()
         };
 
-        console.log("💰", msg.symbol, price);
+        console.log("💰", dbSymbol, price);
       }
     } catch (e) {
       console.error("Parse error:", e.message);
@@ -74,6 +87,7 @@ function connect() {
   });
 }
 
+// WRITE TO SUPABASE
 async function flushToSupabase() {
   const rows = Object.values(latestPrices);
   if (rows.length === 0) return;
@@ -89,6 +103,25 @@ async function flushToSupabase() {
   }
 }
 
-// Start everything
+// START WS
 connect();
 setInterval(flushToSupabase, 2000);
+
+// EXPRESS SERVER (REQUIRED FOR RAILWAY)
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.get("/", (req, res) => {
+  res.send("✅ Finitii backend running");
+});
+
+app.get("/status", (req, res) => {
+  res.json({
+    connected: ws?.readyState === 1,
+    trackedSymbols: Object.keys(latestPrices).length
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`🌐 Server running on port ${PORT}`);
+});
