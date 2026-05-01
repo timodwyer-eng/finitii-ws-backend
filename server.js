@@ -23,9 +23,19 @@ const SYMBOLS = [
 
   { td: "SPY", db: "SPY", type: "stock" },
   { td: "QQQ", db: "QQQ", type: "stock" },
+  { td: "DIA", db: "DIA", type: "index" },
 
   { td: "EUR/USD", db: "EUR/USD", type: "forex" },
-  { td: "GBP/USD", db: "GBP/USD", type: "forex" }
+  { td: "GBP/USD", db: "GBP/USD", type: "forex" },
+  { td: "USD/JPY", db: "USD/JPY", type: "forex" },
+  { td: "USD/CHF", db: "USD/CHF", type: "forex" },
+  { td: "AUD/USD", db: "AUD/USD", type: "forex" },
+  { td: "USD/CAD", db: "USD/CAD", type: "forex" },
+  { td: "NZD/USD", db: "NZD/USD", type: "forex" },
+  { td: "EUR/GBP", db: "EUR/GBP", type: "forex" },
+  { td: "EUR/JPY", db: "EUR/JPY", type: "forex" },
+  { td: "GBP/JPY", db: "GBP/JPY", type: "forex" }
+
 ];
 
 // Map for quick lookup
