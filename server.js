@@ -625,9 +625,6 @@ function connectWS() {
 
       const price = Number(msg.price);
       if (!price) return;
-      
-      const price = Number(msg.price);
-if (!price) return;
 
 const symbol = config.db;
 
