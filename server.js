@@ -624,7 +624,7 @@ function connectWS() {
       }
 
       const price = Number(msg.price);
-      if (!price) return;
+      if (isNaN(price)) return;
 
 const symbol = config.db;
 
