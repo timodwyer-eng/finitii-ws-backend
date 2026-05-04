@@ -717,3 +717,5 @@ const fetchInitialHistory = async () => {
     }
   }
 };
+fetchInitialHistory();
+setInterval(fetchInitialHistory, 60000);
