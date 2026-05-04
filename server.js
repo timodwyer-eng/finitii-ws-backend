@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 function getMinuteTimestamp() {
   return Math.floor(Date.now() / 60000) * 60000;
 }
-const activeCandles = new Map();
 // =====================
 // ENV
 // =====================
