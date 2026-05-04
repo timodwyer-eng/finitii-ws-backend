@@ -1,7 +1,10 @@
 import WebSocket from "ws";
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
-
+function getMinuteTimestamp() {
+  return Math.floor(Date.now() / 60000) * 60000;
+}
+const activeCandles = new Map();
 // =====================
 // ENV
 // =====================
@@ -12,6 +15,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const activeCandles = new Map();
 // =====================
 // SYMBOL CONFIG
 // =====================
@@ -622,6 +626,32 @@ function connectWS() {
 
       const price = Number(msg.price);
       if (!price) return;
+      
+      const price = Number(msg.price);
+if (!price) return;
+
+const symbol = config.db;
+
+// ===== CANDLE LOGIC =====
+const minute = getMinuteTimestamp();
+const key = `${symbol}-${minute}`;
+
+if (!activeCandles.has(key)) {
+  activeCandles.set(key, {
+    symbol,
+    timestamp: new Date(minute).toISOString(),
+    open: price,
+    high: price,
+    low: price,
+    close: price,
+    volume: 0,
+  });
+} else {
+  const candle = activeCandles.get(key);
+  candle.high = Math.max(candle.high, price);
+  candle.low = Math.min(candle.low, price);
+  candle.close = price;
+}
 
       console.log(`💰 ${config.db} = ${price}`);
 
@@ -719,3 +749,23 @@ const fetchInitialHistory = async () => {
 };
 fetchInitialHistory();
 setInterval(fetchInitialHistory, 60000);
+
+setInterval(async () => {
+  if (activeCandles.size === 0) return;
+
+  const candles = Array.from(activeCandles.values());
+
+  console.log(`🕯 Saving ${candles.length} candles`);
+
+  const { error } = await supabase
+    .from("candles")
+    .upsert(candles, { onConflict: "symbol,timestamp" });
+
+  if (error) {
+    console.error("❌ Candle save error:", error.message);
+  } else {
+    console.log("✅ Candles saved");
+  }
+
+  activeCandles.clear();
+}, 60000);
