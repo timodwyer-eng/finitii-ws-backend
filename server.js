@@ -744,7 +744,6 @@ const fetchInitialHistory = async () => {
   }
 };
 fetchInitialHistory();
-setInterval(fetchInitialHistory, 60000);
 
 setInterval(async () => {
   if (activeCandles.size === 0) return;
