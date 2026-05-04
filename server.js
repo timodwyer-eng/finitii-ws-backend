@@ -605,9 +605,9 @@ function connectWS() {
   ws.on("message", async (data) => {
     try {
       const msg = JSON.parse(data.toString());
-
-      if (msg.event !== "price") return;
-
+      
+      if (!msg.price) return;
+      
       const rawSymbol = msg.symbol;
 
       // 🔥 FIX: symbol mapping
