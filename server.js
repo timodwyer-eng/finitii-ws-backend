@@ -674,3 +674,46 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`🌐 Server running on port ${PORT}`);
 });
+
+
+const fetchInitialHistory = async () => {
+  console.log("Fetching initial OHLC history...");
+
+  for (const s of SYMBOLS.slice(0, 50)) { // limit first
+    try {
+      const res = await fetch(
+        `https://api.twelvedata.com/time_series?symbol=${s.td}&interval=1min&outputsize=200&apikey=${process.env.TWELVEDATA_API_KEY}`
+      );
+
+      const data = await res.json();
+
+      if (!data.values) {
+        console.log("No data for", s.db);
+        continue;
+      }
+
+      const rows = data.values.map(c => ({
+        symbol: s.db,
+        timestamp: c.datetime,
+        open: Number(c.open),
+        high: Number(c.high),
+        low: Number(c.low),
+        close: Number(c.close),
+        volume: Number(c.volume || 0),
+      }));
+
+      const { error } = await supabase
+        .from("candles")
+        .upsert(rows, { onConflict: "symbol,timestamp" });
+
+      if (error) {
+        console.error("DB error:", error.message);
+      } else {
+        console.log(`History stored: ${s.db}`);
+      }
+
+    } catch (err) {
+      console.error("Fetch error:", err.message);
+    }
+  }
+};
