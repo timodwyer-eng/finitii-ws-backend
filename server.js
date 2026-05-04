@@ -679,7 +679,7 @@ app.listen(PORT, () => {
 const fetchInitialHistory = async () => {
   console.log("Fetching initial OHLC history...");
 
-  for (const s of SYMBOLS.slice(0, 50)) { // limit first
+  for (const s of SYMBOLS.slice(0, 500)) { // limit first
     try {
       const res = await fetch(
         `https://api.twelvedata.com/time_series?symbol=${s.td}&interval=1min&outputsize=200&apikey=${process.env.TWELVEDATA_API_KEY}`
