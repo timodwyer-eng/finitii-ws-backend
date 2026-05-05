@@ -603,77 +603,75 @@ function connectWS() {
   });
 
   ws.on("message", async (data) => {
-    try {
-      const msg = JSON.parse(data.toString());
-      
-      if (!msg.price) return;
-      
-      const rawSymbol = msg.symbol;
+  try {
+    const msg = JSON.parse(data.toString());
 
-      // 🔥 FIX: symbol mapping
-      let config = symbolMap.get(rawSymbol);
+    if (!msg.price) return;
 
-      if (!config && rawSymbol.endsWith("/USD")) {
-        const stripped = rawSymbol.replace("/USD", "");
-        config = SYMBOLS.find(s => s.db === stripped);
-      }
+    const rawSymbol = msg.symbol;
 
-      if (!config) {
-        console.log("⚠️ Unknown symbol:", rawSymbol);
-        return;
-      }
+    // Symbol mapping
+    let config = symbolMap.get(rawSymbol);
 
-      const price = Number(msg.price);
-      if (isNaN(price)) return;
+    if (!config && rawSymbol.endsWith("/USD")) {
+      const stripped = rawSymbol.replace("/USD", "");
+      config = SYMBOLS.find(s => s.db === stripped);
+    }
 
-const symbol = config.db;
+    if (!config) {
+      console.log("⚠️ Unknown symbol:", rawSymbol);
+      return;
+    }
 
-// ===== CANDLE LOGIC =====
-const minute = getMinuteTimestamp();
-const key = `${symbol}-${minute}`;
+    const price = Number(msg.price);
+    if (isNaN(price)) return;
 
-if (!activeCandles.has(key)) {
-  activeCandles.set(key, {
-    symbol,
-    timestamp: new Date(minute).toISOString(),
-    open: price,
-    high: price,
-    low: price,
-    close: price,
-    volume: 0,
-  });
-} else {
-  const candle = activeCandles.get(key);
-  candle.high = Math.max(candle.high, price);
-  candle.low = Math.min(candle.low, price);
-  candle.close = price;
-}
+    const symbol = config.db;
 
-      if (config.db === "BTC") {
-  console.log(`💰 BTC = ${price}`);
-}
+    // ===== CANDLE LOGIC =====
+    const minute = getMinuteTimestamp();
+    const key = `${symbol}-${minute}`;
 
-      // =====================
-      // SUPABASE WRITE
-      // =====================
-    supabase
-  .from("market_data")
-  .upsert({
-    symbol: config.db,
-    price: price,
-    asset_type: config.type,
-    updated_at: new Date().toISOString()
-  }, { onConflict: "symbol" })
-  .then(({ error }) => {
+    if (!activeCandles.has(key)) {
+      activeCandles.set(key, {
+        symbol,
+        timestamp: new Date(minute).toISOString(),
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: 0,
+      });
+    } else {
+      const candle = activeCandles.get(key);
+      candle.high = Math.max(candle.high, price);
+      candle.low = Math.min(candle.low, price);
+      candle.close = price;
+    }
+
+    if (config.db === "BTC") {
+      console.log(`💰 BTC = ${price}`);
+    }
+
+    // ===== SUPABASE WRITE =====
+    const { error } = await supabase
+      .from("market_data")
+      .upsert({
+        symbol: config.db,
+        price: price,
+        asset_type: config.type,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "symbol" });
+
     if (error) {
       console.error("❌ Supabase error:", error.message);
     } else {
       console.log("✅ DB updated:", config.db);
     }
-  })
-  .catch(err => {
-    console.error("❌ Supabase crash:", err.message);
-  });
+
+  } catch (err) {
+    console.error("❌ MESSAGE HANDLER CRASH:", err.message);
+  }
 });
   ws.on("close", () => {
     console.log("⚠️ WS CLOSED — reconnecting...");
