@@ -743,7 +743,6 @@ const fetchInitialHistory = async () => {
     }
   }
 };
-fetchInitialHistory();
 
 setInterval(async () => {
   console.log("⏱ Interval fired");
@@ -770,3 +769,7 @@ setInterval(async () => {
 
   activeCandles.clear();
 }, 60000);
+
+fetchInitialHistory().catch(err =>
+  console.error("History error:", err)
+);
