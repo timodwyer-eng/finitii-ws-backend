@@ -649,7 +649,9 @@ if (!activeCandles.has(key)) {
   candle.close = price;
 }
 
-      console.log(`💰 ${config.db} = ${price}`);
+      if (config.db === "BTC") {
+  console.log(`💰 BTC = ${price}`);
+}
 
       // =====================
       // SUPABASE WRITE
@@ -745,8 +747,8 @@ const fetchInitialHistory = async () => {
 };
 
 setInterval(async () => {
-  console.log("⏱ Interval fired");
-  console.log("Active candles size:", activeCandles.size);
+  console.log("🔥 INTERVAL 🔥", new Date().toISOString());
+  console.log("Active candles:", activeCandles.size);
 
   const candles = Array.from(activeCandles.values());
 
