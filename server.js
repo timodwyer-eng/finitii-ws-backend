@@ -656,24 +656,23 @@ if (!activeCandles.has(key)) {
       // =====================
       // SUPABASE WRITE
       // =====================
-      const { error } = await supabase
-        .from("market_data")
-        .upsert({
-          symbol: config.db,
-          price: price,
-          asset_type: config.type,
-          updated_at: new Date().toISOString()
-        }, { onConflict: "symbol" });
-
-      if (error) {
-        console.error("❌ Supabase error:", error.message);
-      } else {
-        console.log("✅ DB updated:", config.db);
-      }
-
-    } catch (err) {
-      console.error("❌ Parse error:", err.message);
+    supabase
+  .from("market_data")
+  .upsert({
+    symbol: config.db,
+    price: price,
+    asset_type: config.type,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "symbol" })
+  .then(({ error }) => {
+    if (error) {
+      console.error("❌ Supabase error:", error.message);
+    } else {
+      console.log("✅ DB updated:", config.db);
     }
+  })
+  .catch(err => {
+    console.error("❌ Supabase crash:", err.message);
   });
 
   ws.on("close", () => {
