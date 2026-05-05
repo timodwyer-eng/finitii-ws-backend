@@ -742,5 +742,5 @@ setInterval(async () => {
 }, 60000);
 
 // fetchInitialHistory().catch(err => {
-//   console.error("History error:", err);
+//  console.error("History error:", err);
 // });
