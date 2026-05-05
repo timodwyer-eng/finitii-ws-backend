@@ -674,7 +674,7 @@ if (!activeCandles.has(key)) {
   .catch(err => {
     console.error("❌ Supabase crash:", err.message);
   });
-
+});
   ws.on("close", () => {
     console.log("⚠️ WS CLOSED — reconnecting...");
     setTimeout(connectWS, 5000);
