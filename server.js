@@ -770,6 +770,6 @@ setInterval(async () => {
   activeCandles.clear();
 }, 60000);
 
-fetchInitialHistory().catch(err =>
+// fetchInitialHistory().catch(err =>
   console.error("History error:", err)
-);
+); //
