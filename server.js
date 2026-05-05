@@ -99,7 +99,7 @@ const SYMBOLS = [
   { td: "EEM",  db: "EEM",  type: "etf" },
 
   { td: "EUR/USD", db: "EUR/USD", type: "forex" },
-  { td: "GBP/USD", db: "GBP/USD", type: "forex" },
+  { td: "GBPUSD", db: "GBP/USD", type: "forex" },
   { td: "USD/JPY", db: "USD/JPY", type: "forex" },
   { td: "USD/CHF", db: "USD/CHF", type: "forex" },
   { td: "AUD/USD", db: "AUD/USD", type: "forex" },
