@@ -99,7 +99,7 @@ const SYMBOLS = [
   { td: "EEM",  db: "EEM",  type: "etf" },
 
   { td: "EUR/USD", db: "EUR/USD", type: "forex" },
-  { td: "GBPUSD", db: "GBP/USD", type: "forex" },
+  { td: "GBP/USD", db: "GBP/USD", type: "forex" },
   { td: "USD/JPY", db: "USD/JPY", type: "forex" },
   { td: "USD/CHF", db: "USD/CHF", type: "forex" },
   { td: "AUD/USD", db: "AUD/USD", type: "forex" },
@@ -746,9 +746,15 @@ const fetchInitialHistory = async () => {
 fetchInitialHistory();
 
 setInterval(async () => {
-  if (activeCandles.size === 0) return;
+  console.log("⏱ Interval fired");
+  console.log("Active candles size:", activeCandles.size);
 
   const candles = Array.from(activeCandles.values());
+
+  if (candles.length === 0) {
+    console.log("⚠️ No candles to save");
+    return;
+  }
 
   console.log(`🕯 Saving ${candles.length} candles`);
 
