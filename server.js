@@ -638,7 +638,14 @@ function connectWS() {
 
       const symbol = config.db;
 
-      console.log("📩 Tick:", symbol, price);
+      // Only log BTC (prevents flooding)
+
+if (symbol === "BTC") {
+
+  console.log("💰 BTC:", price);
+
+}
+
 
       // =====================
       // CANDLE LOGIC
@@ -663,7 +670,10 @@ function connectWS() {
         candle.close = price;
       }
 
-      console.log("🧠 Active candles:", activeCandles.size);
+// VERY light occasional debug (0.1% of ticks)
+if (Math.random() < 0.001) {
+  console.log("🧠 Active candles:", activeCandles.size);
+}
 
       // =====================
       // SUPABASE WRITE (NON-BLOCKING)
