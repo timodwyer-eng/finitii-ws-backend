@@ -580,6 +580,17 @@ const symbolMap = new Map();
 SYMBOLS.forEach(s => symbolMap.set(s.td, s));
 
 // =====================
+// SAFE GLOBAL HANDLERS
+// =====================
+process.on("unhandledRejection", (err) => {
+  console.error("❌ UNHANDLED REJECTION:", err);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("❌ UNCAUGHT EXCEPTION:", err);
+});
+
+// =====================
 // WS CONNECTION
 // =====================
 let ws;
@@ -603,78 +614,84 @@ function connectWS() {
   });
 
   ws.on("message", async (data) => {
-  try {
-    const msg = JSON.parse(data.toString());
+    try {
+      const msg = JSON.parse(data.toString());
 
-    if (!msg.price) return;
+      if (!msg.price) return;
 
-    const rawSymbol = msg.symbol;
+      const rawSymbol = msg.symbol;
 
-    // Symbol mapping
-    let config = symbolMap.get(rawSymbol);
+      let config = symbolMap.get(rawSymbol);
 
-    if (!config && rawSymbol.endsWith("/USD")) {
-      const stripped = rawSymbol.replace("/USD", "");
-      config = SYMBOLS.find(s => s.db === stripped);
+      if (!config && rawSymbol.endsWith("/USD")) {
+        const stripped = rawSymbol.replace("/USD", "");
+        config = SYMBOLS.find(s => s.db === stripped);
+      }
+
+      if (!config) {
+        console.log("⚠️ Unknown symbol:", rawSymbol);
+        return;
+      }
+
+      const price = Number(msg.price);
+      if (isNaN(price)) return;
+
+      const symbol = config.db;
+
+      console.log("📩 Tick:", symbol, price);
+
+      // =====================
+      // CANDLE LOGIC
+      // =====================
+      const minute = getMinuteTimestamp();
+      const key = `${symbol}-${minute}`;
+
+      if (!activeCandles.has(key)) {
+        activeCandles.set(key, {
+          symbol,
+          timestamp: new Date(minute).toISOString(),
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+          volume: 0,
+        });
+      } else {
+        const candle = activeCandles.get(key);
+        candle.high = Math.max(candle.high, price);
+        candle.low = Math.min(candle.low, price);
+        candle.close = price;
+      }
+
+      console.log("🧠 Active candles:", activeCandles.size);
+
+      // =====================
+      // SUPABASE WRITE (NON-BLOCKING)
+      // =====================
+      supabase
+        .from("market_data")
+        .upsert({
+          symbol: config.db,
+          price: price,
+          asset_type: config.type,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "symbol" })
+        .then(({ error }) => {
+          if (error) {
+            console.error("❌ Supabase error:", error.message);
+          }
+        })
+        .catch(err => {
+          console.error("❌ Supabase crash:", err.message);
+        });
+
+    } catch (err) {
+      console.error("❌ MESSAGE HANDLER ERROR:", err.message);
     }
+  });
 
-    if (!config) {
-      console.log("⚠️ Unknown symbol:", rawSymbol);
-      return;
-    }
-
-    const price = Number(msg.price);
-    if (isNaN(price)) return;
-
-    const symbol = config.db;
-
-    // ===== CANDLE LOGIC =====
-    const minute = getMinuteTimestamp();
-    const key = `${symbol}-${minute}`;
-
-    if (!activeCandles.has(key)) {
-      activeCandles.set(key, {
-        symbol,
-        timestamp: new Date(minute).toISOString(),
-        open: price,
-        high: price,
-        low: price,
-        close: price,
-        volume: 0,
-      });
-    } else {
-      const candle = activeCandles.get(key);
-      candle.high = Math.max(candle.high, price);
-      candle.low = Math.min(candle.low, price);
-      candle.close = price;
-    }
-
-    if (config.db === "BTC") {
-      console.log(`💰 BTC = ${price}`);
-    }
-
-    // ===== SUPABASE WRITE =====
-    const { error } = await supabase
-      .from("market_data")
-      .upsert({
-        symbol: config.db,
-        price: price,
-        asset_type: config.type,
-        updated_at: new Date().toISOString()
-      }, { onConflict: "symbol" });
-
-    if (error) {
-      console.error("❌ Supabase error:", error.message);
-    } else {
-      console.log("✅ DB updated:", config.db);
-    }
-
-  } catch (err) {
-    console.error("❌ MESSAGE HANDLER CRASH:", err.message);
-  }
-});
   ws.on("close", () => {
-    console.log("⚠️ WS CLOSED — reconnecting...");
+    console.log("⚠️ WS CLOSED — reconnecting in 5s...");
     setTimeout(connectWS, 5000);
   });
 
@@ -683,90 +700,45 @@ function connectWS() {
   });
 }
 
-// Start WS
+// =====================
+// START WS
+// =====================
 connectWS();
 
 // =====================
-// EXPRESS (RAILWAY)
+// HARDENED INTERVAL
 // =====================
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.get("/", (req, res) => {
-  res.send("✅ Finitii WS backend running");
-});
-
-app.listen(PORT, () => {
-  console.log(`🌐 Server running on port ${PORT}`);
-});
-
-
-const fetchInitialHistory = async () => {
-  console.log("Fetching initial OHLC history...");
-
-  for (const s of SYMBOLS.slice(0, 500)) { // limit first
-    try {
-      const res = await fetch(
-        `https://api.twelvedata.com/time_series?symbol=${s.td}&interval=1min&outputsize=200&apikey=${process.env.TWELVEDATA_API_KEY}`
-      );
-
-      const data = await res.json();
-
-      if (!data.values) {
-        console.log("No data for", s.db);
-        continue;
-      }
-
-      const rows = data.values.map(c => ({
-        symbol: s.db,
-        timestamp: c.datetime,
-        open: Number(c.open),
-        high: Number(c.high),
-        low: Number(c.low),
-        close: Number(c.close),
-        volume: Number(c.volume || 0),
-      }));
-
-      const { error } = await supabase
-        .from("candles")
-        .upsert(rows, { onConflict: "symbol,timestamp" });
-
-      if (error) {
-        console.error("DB error:", error.message);
-      } else {
-        console.log(`History stored: ${s.db}`);
-      }
-
-    } catch (err) {
-      console.error("Fetch error:", err.message);
-    }
-  }
-};
+console.log("🚀 Starting candle interval...");
 
 setInterval(async () => {
-  console.log("🔥 INTERVAL 🔥", new Date().toISOString());
-  console.log("Active candles:", activeCandles.size);
+  try {
+    console.log("🔥 INTERVAL FIRED:", new Date().toISOString());
+    console.log("Active candles:", activeCandles.size);
 
-  const candles = Array.from(activeCandles.values());
+    const candles = Array.from(activeCandles.values());
 
-  if (candles.length === 0) {
-    console.log("⚠️ No candles to save");
-    return;
+    if (candles.length === 0) {
+      console.log("⚠️ No candles to save");
+      return;
+    }
+
+    console.log(`🕯 Saving ${candles.length} candles`);
+
+    const { error } = await supabase
+      .from("candles")
+      .upsert(candles, { onConflict: "symbol,timestamp" });
+
+    if (error) {
+      console.error("❌ Candle save error:", error.message);
+    } else {
+      console.log("✅ Candles saved");
+    }
+
+    activeCandles.clear();
+
+  } catch (err) {
+    console.error("❌ INTERVAL CRASH:", err.message);
   }
-
-  console.log(`🕯 Saving ${candles.length} candles`);
-
-  const { error } = await supabase
-    .from("candles")
-    .upsert(candles, { onConflict: "symbol,timestamp" });
-
-  if (error) {
-    console.error("❌ Candle save error:", error.message);
-  } else {
-    console.log("✅ Candles saved");
-  }
-
-  activeCandles.clear();
 }, 60000);
 
 // fetchInitialHistory().catch(err => {
