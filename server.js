@@ -747,7 +747,7 @@ btcCandles.forEach(c => {
 const { error } = await supabase
   .from("candles")
   .upsert(candles, {
-    onConflict: "symbol,timeframe,timestamp"
+    onConflict: "symbol,timestamp"
   });
 
     if (error) {
