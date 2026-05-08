@@ -732,11 +732,23 @@ setInterval(async () => {
       return;
     }
 
-    console.log(`🕯 Saving ${candles.length} candles`);
+    const btcCandles = candles.filter(
+  c => c.symbol === "BTC"
+);
 
-    const { error } = await supabase
-      .from("candles")
-      .upsert(candles, { onConflict: "symbol,timestamp" });
+// Only log BTC candles
+btcCandles.forEach(c => {
+  console.log(
+    `₿ BTC ${c.timeframe} | ${c.timestamp} | C:${c.close}`
+  );
+});
+
+// Still save ALL candles
+const { error } = await supabase
+  .from("candles")
+  .upsert(candles, {
+    onConflict: "symbol,timeframe,timestamp"
+  });
 
     if (error) {
       console.error("❌ Candle save error:", error.message);
